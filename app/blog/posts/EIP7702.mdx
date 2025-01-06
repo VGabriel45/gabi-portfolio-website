@@ -1,0 +1,130 @@
+---
+title: 'EIP-7702: Set EOA Account Code'
+publishedAt: '2024-07-16'
+summary: 'A technical deep dive into EIP-7702, a groundbreaking proposal that enables Externally Owned Accounts (EOAs) to temporarily set account code for single transactions.'
+---
+
+As Solidity developers, we're always on the lookout for proposals that could significantly impact our smart contract development workflow. EIP-7702 represents a revolutionary step forward, bridging the gap between Externally Owned Accounts (EOAs) and smart contract wallets.
+
+## The Core Concept
+
+EIP-7702 introduces a new transaction type that allows EOAs to temporarily set account code for a single transaction. This seemingly simple change opens up a world of possibilities for enhancing EOA functionality without sacrificing the simplicity that makes EOAs attractive to users.
+
+### New Transaction Type
+
+The proposal introduces a new EIP-2718 transaction type, dubbed the "set code transaction." Here's what the RLP serialization looks like:
+
+```solidity
+rlp([
+    chain_id,
+    nonce,
+    max_priority_fee_per_gas,
+    max_fee_per_gas,
+    gas_limit,
+    destination,
+    value,
+    data,
+    access_list,
+    authorization_list,
+    signature_y_parity,
+    signature_r,
+    signature_s
+])
+```
+
+The `authorization_list` is the key new element here, containing tuples of:
+
+```solidity
+[chain_id, address, nonce, y_parity, r, s]
+```
+
+## Technical Deep Dive
+
+### Delegation Designation
+
+EIP-7702 introduces a "delegation designation" using the banned opcode `0xef` from EIP-3541. The designation takes the form:
+
+```solidity
+0xef0100 || address
+```
+
+This designation affects various instructions including:
+- EXTCODESIZE
+- EXTCODECOPY
+- EXTCODEHASH
+- CALL
+- CALLCODE
+- STATICCALL
+- DELEGATECALL
+
+### Gas Costs
+
+The intrinsic cost builds on EIP-2930, with additional costs for the authorization list:
+
+```solidity
+21000 + 16 * non-zero calldata bytes + 4 * zero calldata bytes +
+1900 * access list storage key count + 2400 * access list address count +
+PER_AUTH_BASE_COST * authorization list length
+```
+
+Where `PER_AUTH_BASE_COST` is set to 2500.
+
+## Implementation Benefits
+
+### New Possibilities
+
+1. **Batching Operations**
+   - Perform multiple operations in one atomic transaction
+   - Significantly improve gas efficiency for complex DApp interactions
+
+2. **Transaction Sponsorship**
+   - Enable account X to pay for account Y's transaction
+   - Open new possibilities for meta-transactions
+   - Enhance gas abstraction capabilities
+
+3. **Privilege De-escalation**
+   - Allow users to sign sub-keys with limited permissions
+   - Enhance security in smart contract wallets
+
+## Security Considerations
+
+When implementing delegate contracts, several security aspects need attention:
+
+1. **Replay Protection**
+   - Implement and sign over a nonce in delegate contracts
+   - Ensure transaction uniqueness
+
+2. **Value Protection**
+   - Sign over the `value` field
+   - Prevent unexpected effects in the callee
+
+3. **Gas Protection**
+   - Sign over gas limits
+   - Prevent potential griefing attacks
+
+4. **Target/Calldata Protection**
+   - Sign over specific parameters
+   - Prevent calling arbitrary functions in arbitrary contracts
+
+## Breaking Changes
+
+The proposal introduces some notable changes to existing patterns:
+
+1. Account balance changes can now occur without direct account initiation
+2. EOA nonces may increase after transaction execution begins
+3. Potential impacts on mempool designs and inclusion lists
+
+## Future Implications
+
+As we move towards "endgame account abstraction," EIP-7702 provides:
+
+- A pragmatic stepping stone for advanced EOA functionality
+- Backward compatibility with existing systems
+- Enhanced experimentation capabilities
+- Foundation for next-generation dApps
+
+## Conclusion
+
+EIP-7702 marks a significant advancement in Ethereum's account model evolution. It provides developers with powerful new tools while maintaining backward compatibility. As we continue to build towards a more sophisticated blockchain ecosystem, proposals like EIP-7702 demonstrate how thoughtful protocol improvements can enhance both developer experience and end-user functionality.
+
+The future of Ethereum development looks promising with such innovations, enabling more complex interactions while maintaining the security and simplicity that users expect from blockchain applications. 
